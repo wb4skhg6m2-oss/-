@@ -26,7 +26,7 @@
   .panel{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
   .panel h2{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin:0 0 12px;text-transform:uppercase}
 
-  #preview{width:100%;max-height:58vh;background:#000;border-radius:10px;display:none;
+  #preview{width:100%;max-height:46vh;background:#000;border-radius:10px;display:none;
     object-fit:cover;border:1px solid var(--line)}
   .scan-hint{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
 
@@ -81,12 +81,6 @@
   <video id="preview" playsinline muted></video>
   <button class="btn-main" id="startBtn">カメラを起動</button>
   <p class="scan-hint" id="scanHint">「カメラを起動」を押し、本の上側（978…）のバーコードを枠に映してください。</p>
-
-  <label class="fld" for="manual">手入力（カメラが使えないとき）</label>
-  <div class="row">
-    <input type="text" id="manual" inputmode="numeric" placeholder="ISBN 例: 9784101010014" style="flex:2.2">
-    <button class="btn-ghost" id="manualBtn" style="flex:1">検索</button>
-  </div>
   <div class="err" id="err"></div>
   <div class="spin" id="spin"></div>
 </div>
@@ -102,16 +96,13 @@
 
 <div class="panel" id="searchPanel" style="display:none">
   <h2>メルカリ検索</h2>
-  <label class="fld" for="kw">検索キーワード（編集できます）</label>
-  <input type="text" id="kw">
   <label class="fld">販売状況</label>
   <div class="seg">
     <button id="segSold" class="on">売り切れ</button>
     <button id="segOnsale" class="onsale">販売中</button>
   </div>
-  <button class="btn-main" id="copyUrlBtn">Web版URLをコピー（個人＋指定の販売状況）</button>
-  <p class="scan-hint" style="margin-top:8px;text-align:left;line-height:1.6">コピーしたら <b>Safariのアドレスバーに貼り付けて開く</b> と、<b>出品者=個人＋売り切れ（または販売中）＋新しい順</b>のWebページが表示されます。</p>
-  <a class="btn-link" id="mercariLink" href="#" target="_blank" rel="noopener">またはこのリンクを長押し →「新規タブで開く」でWeb版を開く</a>
+  <a class="btn-link" id="mercariLink" href="#" target="_blank" rel="noopener">このリンクを長押し →「新規タブで開く」でWeb版を開く</a>
+  <p class="scan-hint" style="margin-top:8px;text-align:left;line-height:1.6">長押し→「新規タブで開く」で、<b>出品者=個人＋指定の販売状況＋新しい順</b>のWebページが開きます（普通のタップはアプリに飛びます）。</p>
   <div class="row" style="margin-top:12px">
     <button class="btn-ghost" id="copyTitleBtn" style="flex:1">タイトルをコピー</button>
     <button class="btn-ghost" id="goBtn" style="flex:1">アプリで開く</button>
@@ -136,7 +127,7 @@
 
 <script>
 (function(){
-  var reader=null, controls=null, scanning=false, status="trading|sold_out", history=[];
+  var reader=null, controls=null, scanning=false, status="trading|sold_out", currentKw="", history=[];
   function $(id){return document.getElementById(id)}
   function setErr(m){$("err").textContent=m||""}
   function setSpin(m){$("spin").textContent=m||""}
@@ -168,7 +159,7 @@
     else { cv.classList.add("ph"); cv.style.backgroundImage=""; cv.textContent="本"; }
     $("result").classList.add("show");
     $("searchPanel").style.display="block";
-    $("kw").value=kw;
+    currentKw=kw;
     updateLink();
     pushHistory(kw,isbn);
   }
@@ -200,7 +191,7 @@
 
   function startScan(){
     if(scanning) return;
-    if(typeof ZXingBrowser==="undefined"){ setErr("スキャナの読み込みに失敗しました。通信環境を確認して再読み込みするか、手入力をご利用ください。"); return; }
+    if(typeof ZXingBrowser==="undefined"){ setErr("スキャナの読み込みに失敗しました。通信環境を確認して、ページを再読み込みしてください。"); return; }
     setErr("");
     if(!reader) reader=new ZXingBrowser.BrowserMultiFormatReader();
     var video=$("preview"); video.style.display="block";
@@ -222,27 +213,19 @@
   }
 
   $("startBtn").onclick=function(){ scanning?stopScan():startScan(); };
-  $("manualBtn").onclick=function(){
-    var v=$("manual").value.replace(/[^0-9Xx]/g,"");
-    if(v.length<10){ setErr("ISBN（10桁か13桁）を入力してください。"); return; }
-    setErr(""); lookup(v);
-  };
-  $("manual").addEventListener("keydown",function(e){ if(e.key==="Enter") $("manualBtn").click(); });
   $("segSold").onclick=function(){ status="trading|sold_out"; this.classList.add("on"); $("segOnsale").classList.remove("on"); updateLink(); };
   $("segOnsale").onclick=function(){ status="on_sale"; this.classList.add("on"); $("segSold").classList.remove("on"); updateLink(); };
   $("goBtn").onclick=function(){
-    var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードを入力してください。"); return; }
-    window.open(mercariUrl(kw),"_blank","noopener");
+    if(!currentKw){ setErr("先に本をスキャンしてください。"); return; }
+    window.open(mercariUrl(currentKw),"_blank","noopener");
   };
   function flash(m){ setSpin(m); setTimeout(function(){ setSpin(""); },1500); }
   function copyText(t){
     try{ navigator.clipboard.writeText(t).then(function(){ flash("コピーしました"); },function(){ flash("コピーに失敗しました"); }); }
     catch(e){ flash("コピーに失敗しました"); }
   }
-  $("copyTitleBtn").onclick=function(){ var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードがありません。"); return; } copyText(kw); };
-  $("copyUrlBtn").onclick=function(){ var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードがありません。"); return; } copyText(mercariUrl(kw)); };
-  function updateLink(){ var kw=$("kw").value.trim(); $("mercariLink").href = kw ? mercariUrl(kw) : "#"; }
-  $("kw").addEventListener("input", updateLink);
+  $("copyTitleBtn").onclick=function(){ if(!currentKw){ setErr("先に本をスキャンしてください。"); return; } copyText(currentKw); };
+  function updateLink(){ $("mercariLink").href = currentKw ? mercariUrl(currentKw) : "#"; }
 })();
 </script>
 </body>
