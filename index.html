@@ -108,7 +108,14 @@
     <button id="segOnsale" class="onsale">販売中</button>
   </div>
   <button class="btn-main" id="goBtn">メルカリで開く（新しい順）</button>
-  <p class="scan-hint" style="margin-top:10px">開いた後、メルカリ側の「絞り込み」で<b>販売元＝メルカリ（個人）</b>を一度設定すると保持されます。</p>
+  <div class="row" style="margin-top:10px">
+    <button class="btn-ghost" id="copyTitleBtn" style="flex:1">タイトルをコピー</button>
+    <button class="btn-ghost" id="copyUrlBtn" style="flex:1">URLをコピー</button>
+  </div>
+  <p class="scan-hint" style="margin-top:12px;text-align:left;line-height:1.6">
+    <b>おすすめの使い方：</b>メルカリアプリの「絞り込み」で<b>売り切れ＋出品者=個人</b>を一度設定して検索しておくと、その条件はアプリ内で保持されます。あとは本ごとに「<b>タイトルをコピー</b>」→アプリの検索窓に貼り付けるだけで、毎回同じ絞り込みで相場が見られます。<br>
+    ※「<b>URLをコピー</b>」してSafariのアドレスバーに貼ると、Web版で「売り切れ」が反映されます（出品者=個人はWeb版でも指定不可）。
+  </p>
 </div>
 
 <div class="panel">
@@ -125,7 +132,7 @@
 
 <script>
 (function(){
-  var reader=null, controls=null, scanning=false, status="sold_out", history=[];
+  var reader=null, controls=null, scanning=false, status="sold_out|trading", history=[];
   function $(id){return document.getElementById(id)}
   function setErr(m){$("err").textContent=m||""}
   function setSpin(m){$("spin").textContent=m||""}
@@ -216,12 +223,19 @@
     setErr(""); lookup(v);
   };
   $("manual").addEventListener("keydown",function(e){ if(e.key==="Enter") $("manualBtn").click(); });
-  $("segSold").onclick=function(){ status="sold_out"; this.classList.add("on"); $("segOnsale").classList.remove("on"); };
+  $("segSold").onclick=function(){ status="sold_out|trading"; this.classList.add("on"); $("segOnsale").classList.remove("on"); };
   $("segOnsale").onclick=function(){ status="on_sale"; this.classList.add("on"); $("segSold").classList.remove("on"); };
   $("goBtn").onclick=function(){
     var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードを入力してください。"); return; }
     window.open(mercariUrl(kw),"_blank","noopener");
   };
+  function flash(m){ setSpin(m); setTimeout(function(){ setSpin(""); },1500); }
+  function copyText(t){
+    try{ navigator.clipboard.writeText(t).then(function(){ flash("コピーしました"); },function(){ flash("コピーに失敗しました"); }); }
+    catch(e){ flash("コピーに失敗しました"); }
+  }
+  $("copyTitleBtn").onclick=function(){ var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードがありません。"); return; } copyText(kw); };
+  $("copyUrlBtn").onclick=function(){ var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードがありません。"); return; } copyText(mercariUrl(kw)); };
 })();
 </script>
 </body>
