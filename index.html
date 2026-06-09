@@ -35,6 +35,8 @@
   .btn-main:active{background:var(--amber-press)}
   .btn-ghost{width:100%;padding:12px;background:transparent;color:var(--paper);border:1px solid var(--line);font-weight:600}
   .btn-ghost:active{background:#2a2520}
+  .btn-link{display:block;width:100%;padding:12px;box-sizing:border-box;background:transparent;color:var(--amber);border:1px solid var(--amber);border-radius:10px;font-weight:700;font-size:14px;text-align:center;text-decoration:none;margin-top:10px}
+  .btn-link:active{background:#2a2520}
   .row{display:flex;gap:10px}
 
   label.fld{display:block;font-size:11px;color:var(--muted);margin:14px 0 6px;letter-spacing:.05em}
@@ -109,6 +111,7 @@
   </div>
   <button class="btn-main" id="copyUrlBtn">Web版URLをコピー（個人＋指定の販売状況）</button>
   <p class="scan-hint" style="margin-top:8px;text-align:left;line-height:1.6">コピーしたら <b>Safariのアドレスバーに貼り付けて開く</b> と、<b>出品者=個人＋売り切れ（または販売中）＋新しい順</b>のWebページが表示されます。</p>
+  <a class="btn-link" id="mercariLink" href="#" target="_blank" rel="noopener">またはこのリンクを長押し →「新規タブで開く」でWeb版を開く</a>
   <div class="row" style="margin-top:12px">
     <button class="btn-ghost" id="copyTitleBtn" style="flex:1">タイトルをコピー</button>
     <button class="btn-ghost" id="goBtn" style="flex:1">アプリで開く</button>
@@ -166,6 +169,7 @@
     $("result").classList.add("show");
     $("searchPanel").style.display="block";
     $("kw").value=kw;
+    updateLink();
     pushHistory(kw,isbn);
   }
 
@@ -224,8 +228,8 @@
     setErr(""); lookup(v);
   };
   $("manual").addEventListener("keydown",function(e){ if(e.key==="Enter") $("manualBtn").click(); });
-  $("segSold").onclick=function(){ status="trading|sold_out"; this.classList.add("on"); $("segOnsale").classList.remove("on"); };
-  $("segOnsale").onclick=function(){ status="on_sale"; this.classList.add("on"); $("segSold").classList.remove("on"); };
+  $("segSold").onclick=function(){ status="trading|sold_out"; this.classList.add("on"); $("segOnsale").classList.remove("on"); updateLink(); };
+  $("segOnsale").onclick=function(){ status="on_sale"; this.classList.add("on"); $("segSold").classList.remove("on"); updateLink(); };
   $("goBtn").onclick=function(){
     var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードを入力してください。"); return; }
     window.open(mercariUrl(kw),"_blank","noopener");
@@ -237,6 +241,8 @@
   }
   $("copyTitleBtn").onclick=function(){ var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードがありません。"); return; } copyText(kw); };
   $("copyUrlBtn").onclick=function(){ var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードがありません。"); return; } copyText(mercariUrl(kw)); };
+  function updateLink(){ var kw=$("kw").value.trim(); $("mercariLink").href = kw ? mercariUrl(kw) : "#"; }
+  $("kw").addEventListener("input", updateLink);
 })();
 </script>
 </body>
