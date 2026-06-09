@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>古本せどりスキャナ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#161412;        /* 背景：墨に近い濃茶 */
+    --ink-2:#211d19;      /* カード面 */
+    --line:#3a332c;       /* 罫線 */
+    --paper:#efe7d8;      /* 文字：生成り */
+    --muted:#9a8f7e;      /* 補助文字 */
+    --amber:#e0a83c;      /* アクション：琥珀 */
+    --amber-press:#c8902a;
+    --sold:#d8694b;       /* 売り切れ */
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    background:var(--ink);color:var(--paper);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    line-height:1.5;padding:env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px);
+    max-width:560px;margin:0 auto;min-height:100vh;
+  }
+  header{padding:22px 2px 14px}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand h1{font-size:19px;font-weight:800;letter-spacing:.02em;margin:0}
+  .brand .tag{font-size:11px;color:var(--muted);font-family:ui-monospace,monospace}
+  .sub{font-size:12.5px;color:var(--muted);margin:6px 2px 0}
+
+  .panel{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+  .panel h2{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin:0 0 12px;text-transform:uppercase}
+
+  /* スキャナ */
+  #reader{border-radius:10px;overflow:hidden;background:#000;border:1px solid var(--line)}
+  #reader:empty{display:none}
+  .scan-hint{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
+
+  /* ボタン */
+  button{font-family:inherit;font-size:15px;border:none;border-radius:10px;cursor:pointer}
+  .btn-main{width:100%;padding:14px;background:var(--amber);color:#1a1206;font-weight:800;letter-spacing:.02em}
+  .btn-main:active{background:var(--amber-press)}
+  .btn-ghost{width:100%;padding:12px;background:transparent;color:var(--paper);border:1px solid var(--line);font-weight:600}
+  .btn-ghost:active{background:#2a2520}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+
+  /* 入力 */
+  label.fld{display:block;font-size:11px;color:var(--muted);margin:14px 0 6px;letter-spacing:.05em}
+  input[type=text]{width:100%;padding:12px;background:var(--ink);border:1px solid var(--line);border-radius:10px;
+    color:var(--paper);font-size:16px;font-family:ui-monospace,"Hiragino Sans",monospace}
+  input[type=text]:focus{outline:none;border-color:var(--amber)}
+
+  /* 状態トグル */
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:6px}
+  .seg button{flex:1;padding:11px;background:transparent;color:var(--muted);font-weight:700;font-size:13px}
+  .seg button.on{background:var(--sold);color:#1a1206}
+  .seg button.on.onsale{background:#5b8c6e}
+
+  /* 結果カード */
+  .result{display:none;margin-top:16px;gap:14px}
+  .result.show{display:flex}
+  .cover{width:78px;height:112px;border-radius:6px;background:#0c0a08;border:1px solid var(--line);
+    object-fit:cover;flex:none}
+  .cover.ph{display:flex;align-items:center;justify-content:center;color:var(--line);font-size:30px}
+  .meta{min-width:0;flex:1}
+  .meta .ttl{font-size:16px;font-weight:800;margin:2px 0 4px;word-break:break-word}
+  .meta .aut{font-size:12.5px;color:var(--muted)}
+  .meta .isbn{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted);margin-top:6px}
+
+  /* 履歴 */
+  .hist{margin-top:8px}
+  .hist .item{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .hist .item:last-child{border-bottom:none}
+  .hist .h-ttl{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist .h-go{flex:none;padding:7px 12px;background:transparent;border:1px solid var(--amber);color:var(--amber);
+    border-radius:8px;font-size:12px;font-weight:700}
+  .hist .empty{color:var(--muted);font-size:13px;padding:6px 2px}
+
+  .note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:18px;padding:0 2px}
+  .note b{color:var(--paper)}
+  .err{color:var(--sold);font-size:13px;margin-top:10px;min-height:1px}
+  .spin{color:var(--amber);font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>古本せどりスキャナ</h1><span class="tag">ISBN → メルカリ</span></div>
+  <p class="sub">バーコードを読み取り、書名で「売り切れ・新しい順」のメルカリ検索を開きます。</p>
+</header>
+
+<div class="panel">
+  <h2>スキャン</h2>
+  <div id="reader"></div>
+  <div class="row" id="camBtns">
+    <button class="btn-main" id="startBtn">カメラを起動</button>
+  </div>
+  <p class="scan-hint" id="scanHint">本の上側のバーコード（978… で始まるISBN）を枠に合わせてください。</p>
+
+  <label class="fld" for="manual">手入力（カメラが使えないとき）</label>
+  <div class="row">
+    <input type="text" id="manual" inputmode="numeric" placeholder="ISBN 例: 9784101010014" style="flex:2.2">
+    <button class="btn-ghost" id="manualBtn" style="flex:1">検索</button>
+  </div>
+  <div class="err" id="err"></div>
+  <div class="spin" id="spin"></div>
+</div>
+
+<div class="result" id="result">
+  <div class="cover ph" id="cover">本</div>
+  <div class="meta">
+    <div class="ttl" id="ttl"></div>
+    <div class="aut" id="aut"></div>
+    <div class="isbn" id="isbnLbl"></div>
+  </div>
+</div>
+
+<div class="panel" id="searchPanel" style="display:none">
+  <h2>メルカリ検索</h2>
+  <label class="fld" for="kw">検索キーワード（編集できます）</label>
+  <input type="text" id="kw">
+  <label class="fld">販売状況</label>
+  <div class="seg">
+    <button id="segSold" class="on">売り切れ</button>
+    <button id="segOnsale" class="onsale">販売中</button>
+  </div>
+  <div style="height:14px"></div>
+  <button class="btn-main" id="goBtn">メルカリで開く（新しい順）</button>
+  <p class="scan-hint" style="margin-top:10px">開いた後、メルカリ側の「絞り込み」で<b style="color:var(--paper)">販売元＝メルカリ（個人）</b>を一度設定すると次回以降も保持されます。</p>
+</div>
+
+<div class="panel">
+  <h2>このセッションの履歴</h2>
+  <div class="hist" id="hist"><div class="empty">まだスキャンしていません。</div></div>
+</div>
+
+<p class="note">
+  <b>使い方のメモ</b><br>
+  ・カメラはスマホで使う場合、<b>https のページ</b>（例: GitHub Pages 等）に置くと動きます。端末に保存したファイルを直接開くとカメラがブロックされることがあるので、その時は手入力をご利用ください。<br>
+  ・書名は openBD（無料の書誌データベース）から取得しています。登録のない本はISBNがそのまま検索語になります。<br>
+  ・メルカリの結果はメルカリ公式ページで表示されます（このツールは検索を開くだけで、データの取り込みはしません）。
+</p>
+
+<script>
+(function(){
+  var Formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? Html5QrcodeSupportedFormats : null;
+  var reader=null, scanning=false, busy=false;
+  var current={isbn:"", title:""};
+  var history=[];
+
+  var $=function(id){return document.getElementById(id)};
+  var status="sold_out";
+
+  function setErr(m){ $("err").textContent=m||""; }
+  function setSpin(m){ $("spin").textContent=m||""; }
+
+  // --- メルカリURL組み立て ---
+  function mercariUrl(keyword){
+    var p=new URLSearchParams();
+    p.set("keyword", keyword);
+    p.set("status", status);          // sold_out=売り切れ / on_sale=販売中
+    p.set("sort","created_time");     // 新しい順
+    p.set("order","desc");
+    return "https://jp.mercari.com/search?"+p.toString();
+  }
+
+  // --- openBDで書名取得 ---
+  function lookup(isbn){
+    setErr(""); setSpin("書名を取得中…");
+    fetch("https://api.openbd.jp/v1/get?isbn="+encodeURIComponent(isbn))
+      .then(function(r){return r.json()})
+      .then(function(data){
+        setSpin("");
+        var rec=(data&&data[0])?data[0]:null;
+        var s=(rec&&rec.summary)?rec.summary:null;
+        var title=(s&&s.title)?s.title:"";
+        var author=(s&&s.author)?s.author:"";
+        var cover=(s&&s.cover)?s.cover:"";
+        showResult(isbn, title, author, cover);
+      })
+      .catch(function(){
+        setSpin("");
+        showResult(isbn, "", "", "");  // 取得失敗でもISBNで検索可能に
+      });
+  }
+
+  function showResult(isbn, title, author, cover){
+    current.isbn=isbn;
+    var kw = title ? title : isbn;
+    current.title = kw;
+
+    $("ttl").textContent = title || "(書名の登録なし)";
+    $("aut").textContent = author || "";
+    $("isbnLbl").textContent = "ISBN "+isbn;
+    var cv=$("cover");
+    if(cover){ cv.outerHTML='<img class="cover" id="cover" src="'+cover+'" alt="">'; }
+    else { var img=document.querySelector("#cover"); }
+    $("result").classList.add("show");
+    $("searchPanel").style.display="block";
+    $("kw").value = kw;
+    pushHistory(kw, isbn);
+  }
+
+  function pushHistory(title, isbn){
+    history.unshift({title:title, isbn:isbn});
+    if(history.length>20) history.pop();
+    renderHistory();
+  }
+  function renderHistory(){
+    var h=$("hist");
+    if(history.length===0){ h.innerHTML='<div class="empty">まだスキャンしていません。</div>'; return; }
+    h.innerHTML="";
+    history.forEach(function(it){
+      var row=document.createElement("div"); row.className="item";
+      var t=document.createElement("div"); t.className="h-ttl"; t.textContent=it.title;
+      var b=document.createElement("button"); b.className="h-go"; b.textContent="開く";
+      b.onclick=function(){ window.open(mercariUrl(it.title),"_blank","noopener"); };
+      row.appendChild(t); row.appendChild(b); h.appendChild(row);
+    });
+  }
+
+  // --- バーコード処理：ISBN(978/979)のみ採用、価格コード(192)は無視 ---
+  function handleCode(text){
+    var d=(text||"").replace(/[^0-9]/g,"");
+    if(d.indexOf("978")===0 || d.indexOf("979")===0){
+      if(d.length>=13) d=d.substring(0,13);
+      stopScan();
+      lookup(d);
+    }
+    // 192…(価格コード)はスルーして読み取り継続
+  }
+
+  // --- カメラ ---
+  function startScan(){
+    if(scanning||busy) return; busy=true; setErr("");
+    if(!reader){ reader=new Html5Qrcode("reader"); }
+    var cfg={fps:10, qrbox:{width:280,height:170}};
+    if(Formats){ cfg.formatsToSupport=[Formats.EAN_13]; }
+    reader.start({facingMode:"environment"}, cfg, function(t){handleCode(t)}, function(){})
+      .then(function(){ scanning=true; busy=false;
+        $("startBtn").textContent="カメラを停止"; $("scanHint").textContent="978… のバーコードを枠内に。";
+      })
+      .catch(function(e){ busy=false;
+        setErr("カメラを起動できませんでした。https環境かカメラ許可をご確認ください。手入力もご利用いただけます。");
+      });
+  }
+  function stopScan(){
+    if(!reader||!scanning){ return; }
+    reader.stop().then(function(){ scanning=false; $("startBtn").textContent="カメラを起動"; }).catch(function(){});
+  }
+
+  $("startBtn").onclick=function(){ scanning?stopScan():startScan(); };
+  $("manualBtn").onclick=function(){
+    var v=$("manual").value.replace(/[^0-9Xx]/g,"");
+    if(v.length<10){ setErr("ISBN（10桁か13桁）を入力してください。"); return; }
+    setErr(""); lookup(v);
+  };
+  $("manual").addEventListener("keydown",function(e){ if(e.key==="Enter") $("manualBtn").click(); });
+
+  $("segSold").onclick=function(){ status="sold_out"; this.classList.add("on"); $("segOnsale").classList.remove("on"); };
+  $("segOnsale").onclick=function(){ status="on_sale"; this.classList.add("on"); $("segSold").classList.remove("on"); };
+
+  $("goBtn").onclick=function(){
+    var kw=$("kw").value.trim(); if(!kw){ setErr("キーワードを入力してください。"); return; }
+    window.open(mercariUrl(kw),"_blank","noopener");
+  };
+})();
+</script>
+</body>
+</html>
