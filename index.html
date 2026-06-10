@@ -143,9 +143,26 @@
     setErr(""); setSpin("書名を取得中…");
     fetch("https://api.openbd.jp/v1/get?isbn="+encodeURIComponent(isbn))
       .then(function(r){return r.json()})
-      .then(function(d){ setSpin("");
+      .then(function(d){
         var rec=(d&&d[0])?d[0]:null, s=(rec&&rec.summary)?rec.summary:null;
-        showResult(isbn, s&&s.title?s.title:"", s&&s.author?s.author:"", s&&s.cover?s.cover:"");
+        var title=s&&s.title?s.title:"";
+        if(title){ setSpin(""); showResult(isbn, title, s.author||"", s.cover||""); }
+        else { lookupGoogle(isbn); }
+      })
+      .catch(function(){ lookupGoogle(isbn); });
+  }
+
+  function lookupGoogle(isbn){
+    setSpin("別のデータベースで検索中…");
+    fetch("https://www.googleapis.com/books/v1/volumes?q=isbn:"+encodeURIComponent(isbn))
+      .then(function(r){return r.json()})
+      .then(function(d){ setSpin("");
+        var it=(d&&d.items&&d.items[0])?d.items[0]:null, v=it&&it.volumeInfo?it.volumeInfo:null;
+        var title=v&&v.title?v.title:"";
+        if(title&&v.subtitle) title+=" "+v.subtitle;
+        var author=v&&v.authors?v.authors.join(" "):"";
+        var cover=(v&&v.imageLinks&&v.imageLinks.thumbnail)?v.imageLinks.thumbnail.replace(/^http:/,"https:"):"";
+        showResult(isbn, title, author, cover);
       })
       .catch(function(){ setSpin(""); showResult(isbn,"","",""); });
   }
