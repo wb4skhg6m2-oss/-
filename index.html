@@ -94,6 +94,14 @@
   </div>
 </div>
 
+<div id="manualTitleWrap" style="display:none;margin-top:12px">
+  <label class="fld" for="manualTitle" style="margin-top:0">書名が見つかりませんでした。手入力で検索できます</label>
+  <div class="row">
+    <input type="text" id="manualTitle" placeholder="書名を入力" style="flex:2.4">
+    <button class="btn-ghost" id="manualTitleBtn" style="flex:1">反映</button>
+  </div>
+</div>
+
 <div class="panel" id="searchPanel" style="display:none">
   <h2>メルカリ検索</h2>
   <label class="fld">販売状況</label>
@@ -127,7 +135,7 @@
 
 <script>
 (function(){
-  var reader=null, controls=null, scanning=false, status="trading|sold_out", currentKw="", history=[];
+  var reader=null, controls=null, scanning=false, status="trading|sold_out", currentKw="", history=[], BOOK_CATEGORY="5";
   function $(id){return document.getElementById(id)}
   function setErr(m){$("err").textContent=m||""}
   function setSpin(m){$("spin").textContent=m||""}
@@ -135,7 +143,7 @@
   function mercariUrl(kw){
     var p=new URLSearchParams();
     p.set("keyword",kw); p.set("sort","created_time"); p.set("order","desc");
-    p.set("status",status); p.set("item_types","mercari");
+    p.set("status",status); p.set("item_types","mercari"); p.set("category_id",BOOK_CATEGORY);
     return "https://jp.mercari.com/search?"+p.toString();
   }
 
@@ -168,7 +176,7 @@
   }
 
   function showResult(isbn,title,author,cover){
-    var kw=title||isbn, cv=$("cover");
+    var found=!!title, kw=title||isbn, cv=$("cover");
     $("ttl").textContent=title||"(書名の登録なし)";
     $("aut").textContent=author||"";
     $("isbnLbl").textContent="ISBN "+isbn;
@@ -176,6 +184,8 @@
     else { cv.classList.add("ph"); cv.style.backgroundImage=""; cv.textContent="本"; }
     $("result").classList.add("show");
     $("searchPanel").style.display="block";
+    $("manualTitleWrap").style.display = found ? "none" : "block";
+    if(!found){ $("manualTitle").value=""; }
     currentKw=kw;
     updateLink();
     pushHistory(kw,isbn);
@@ -242,6 +252,12 @@
     catch(e){ flash("コピーに失敗しました"); }
   }
   $("copyTitleBtn").onclick=function(){ if(!currentKw){ setErr("先に本をスキャンしてください。"); return; } copyText(currentKw); };
+  $("manualTitleBtn").onclick=function(){
+    var t=$("manualTitle").value.trim();
+    if(!t){ setErr("書名を入力してください。"); return; }
+    setErr(""); currentKw=t; $("ttl").textContent=t; updateLink(); flash("反映しました");
+  };
+  $("manualTitle").addEventListener("keydown",function(e){ if(e.key==="Enter") $("manualTitleBtn").click(); });
   function updateLink(){ $("mercariLink").href = currentKw ? mercariUrl(currentKw) : "#"; }
 })();
 </script>
