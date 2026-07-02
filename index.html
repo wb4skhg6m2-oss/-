@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>古本せどりスキャナ</title>
+<title>せどりスキャナ</title>
 <script src="https://unpkg.com/@zxing/browser@0.1.5"></script>
 <style>
   :root{
-    --ink:#161412; --ink-2:#211d19; --line:#3a332c;
+    --ink:#000000; --ink-2:#111111; --line:#333333;
     --paper:#efe7d8; --muted:#9a8f7e;
     --amber:#e0a83c; --amber-press:#c8902a; --sold:#d8694b;
   }
@@ -34,9 +34,9 @@
   .btn-main{width:100%;padding:14px;background:var(--amber);color:#1a1206;font-weight:800;letter-spacing:.02em;margin-top:12px}
   .btn-main:active{background:var(--amber-press)}
   .btn-ghost{width:100%;padding:12px;background:transparent;color:var(--paper);border:1px solid var(--line);font-weight:600}
-  .btn-ghost:active{background:#2a2520}
+  .btn-ghost:active{background:#1d1d1d}
   .btn-link{display:block;width:100%;padding:12px;box-sizing:border-box;background:transparent;color:var(--amber);border:1px solid var(--amber);border-radius:10px;font-weight:700;font-size:14px;text-align:center;text-decoration:none;margin-top:10px}
-  .btn-link:active{background:#2a2520}
+  .btn-link:active{background:#1d1d1d}
   .row{display:flex;gap:10px}
 
   label.fld{display:block;font-size:11px;color:var(--muted);margin:14px 0 6px;letter-spacing:.05em}
@@ -48,11 +48,12 @@
   .seg button{flex:1;padding:11px;background:transparent;color:var(--muted);font-weight:700;font-size:13px}
   .seg button.on{background:var(--sold);color:#1a1206}
   .seg button.on.onsale{background:#5b8c6e}
+  .seg.media button.on{background:var(--amber);color:#1a1206}
 
   .result{display:none;margin-top:16px;gap:14px}
   .result.show{display:flex}
-  .cover{width:78px;height:112px;border-radius:6px;background:#0c0a08 center/cover no-repeat;border:1px solid var(--line);flex:none}
-  .cover.ph{display:flex;align-items:center;justify-content:center;color:var(--line);font-size:30px}
+  .cover{width:78px;height:112px;border-radius:6px;background:#0a0a0a center/cover no-repeat;border:1px solid var(--line);flex:none}
+  .cover.ph{display:flex;align-items:center;justify-content:center;color:var(--line);font-size:28px}
   .meta{min-width:0;flex:1}
   .meta .ttl{font-size:16px;font-weight:800;margin:2px 0 4px;word-break:break-word}
   .meta .aut{font-size:12.5px;color:var(--muted)}
@@ -61,7 +62,7 @@
   .hist .item{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line)}
   .hist .item:last-child{border-bottom:none}
   .hist .h-ttl{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .hist .h-go{flex:none;padding:7px 12px;background:transparent;border:1px solid var(--amber);color:var(--amber);border-radius:8px;font-size:12px;font-weight:700}
+  .hist .h-go{flex:none;padding:7px 12px;background:transparent;border:1px solid var(--amber);color:var(--amber);border-radius:8px;font-size:12px;font-weight:700;text-decoration:none}
   .hist .empty{color:var(--muted);font-size:13px;padding:6px 2px}
 
   .note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:18px;padding:0 2px}
@@ -72,15 +73,15 @@
 </head>
 <body>
 <header>
-  <div class="brand"><h1>古本せどりスキャナ</h1><span class="tag">ISBN → メルカリ</span></div>
-  <p class="sub">バーコードを読み取り、書名で「売り切れ・新しい順」のメルカリ検索を開きます。</p>
+  <div class="brand"><h1>せどりスキャナ</h1><span class="tag">本・CD・DVD・ゲーム → メルカリ</span></div>
+  <p class="sub">バーコードを読み取り、書名・商品名で「売り切れ・個人・新しい順」のメルカリ検索を開きます。</p>
 </header>
 
 <div class="panel">
   <h2>スキャン</h2>
   <video id="preview" playsinline muted></video>
   <button class="btn-main" id="startBtn">カメラを起動</button>
-  <p class="scan-hint" id="scanHint">「カメラを起動」を押し、本の上側（978…）のバーコードを枠に映してください。</p>
+  <p class="scan-hint" id="scanHint">「カメラを起動」を押し、バーコードを枠に映してください（本はISBN 978…、CD/DVD/ゲームはJAN）。</p>
   <div class="err" id="err"></div>
   <div class="spin" id="spin"></div>
 </div>
@@ -94,31 +95,38 @@
   </div>
 </div>
 
-<div id="manualTitleWrap" style="display:none;margin-top:12px">
-  <label class="fld" for="manualTitle" style="margin-top:0">書名が見つかりませんでした。手入力で検索できます</label>
+<div id="manualTitleWrap" style="margin-top:12px">
+  <label class="fld" for="manualTitle" style="margin-top:0">手入力（タイトルの修正・取得できなかった場合）</label>
   <div class="row">
-    <input type="text" id="manualTitle" placeholder="書名を入力" style="flex:2.4">
+    <input type="text" id="manualTitle" placeholder="商品名を入力" style="flex:2.4">
     <button class="btn-ghost" id="manualTitleBtn" style="flex:1">反映</button>
   </div>
 </div>
 
 <div class="panel" id="searchPanel" style="display:none">
   <h2>メルカリ検索</h2>
+
+  <div id="mediaWrap" style="display:none">
+    <label class="fld" style="margin-top:0">メディア種別（カテゴリー）</label>
+    <div class="seg media">
+      <button id="segCD" class="on">CD・DVD・BD</button>
+      <button id="segGame">ゲーム</button>
+    </div>
+  </div>
+
   <label class="fld">販売状況</label>
   <div class="seg">
     <button id="segSold" class="on">売り切れ</button>
     <button id="segOnsale" class="onsale">販売中</button>
   </div>
+
   <a class="btn-link" id="mercariLink" href="#" target="_blank" rel="noopener">このリンクを長押し →「新規タブで開く」でWeb版を開く</a>
-  <p class="scan-hint" style="margin-top:8px;text-align:left;line-height:1.6">長押し→「新規タブで開く」で、<b>出品者=個人＋指定の販売状況＋新しい順</b>のWebページが開きます（普通のタップはアプリに飛びます）。</p>
+  <p class="scan-hint" style="margin-top:8px;text-align:left;line-height:1.6">長押し→「新規タブで開く」で、<b>出品者=個人＋指定の販売状況＋カテゴリー＋新しい順</b>のWebページが開きます（普通のタップはアプリに飛びます）。</p>
+
   <div class="row" style="margin-top:12px">
     <button class="btn-ghost" id="copyTitleBtn" style="flex:1">タイトルをコピー</button>
     <button class="btn-ghost" id="goBtn" style="flex:1">アプリで開く</button>
   </div>
-  <p class="scan-hint" style="margin-top:12px;text-align:left;line-height:1.6">
-    ・「<b>タイトルをコピー</b>」→ メルカリアプリの検索窓に貼り付け。アプリ側で設定した絞り込み（売り切れ＋個人）が保持されるので、これでも両方効きます。<br>
-    ・「<b>アプリで開く</b>」は新しい順で開きますが、アプリは売り切れ・個人の指定を無視するため、販売中の確認やサッと見る用です。
-  </p>
 </div>
 
 <div class="panel">
@@ -128,25 +136,38 @@
 
 <p class="note">
   <b>使い方のメモ</b><br>
-  ・読み取りのコツ：本の<b>上側（978…で始まる方）</b>のバーコードを、枠いっぱいに大きく。端末を10〜15cmほど離してピントを合わせると読みやすいです。<br>
-  ・書名は openBD（無料の書誌データベース）から取得。登録のない本はISBNがそのまま検索語になります。<br>
+  ・<b>本</b>＝openBD／Googleブックス（無料）で書名を取得。<b>CD・DVD・ゲーム</b>＝楽天APIで商品名を取得します。<br>
+  ・本のISBN（978/979）は自動で本カテゴリー。それ以外のJANはCD/DVD/ゲームとして扱い、上の「メディア種別」でカテゴリーを選べます。<br>
   ・メルカリの結果はメルカリ公式ページで表示されます（このツールは検索を開くだけで、データの取り込みはしません）。
 </p>
 
 <script>
 (function(){
-  var reader=null, controls=null, scanning=false, status="trading|sold_out", currentKw="", history=[], BOOK_CATEGORY="5";
+  /* ========= 楽天アプリID（CD/DVD/ゲームの商品名取得に使用） =========
+     下の "" の中に、自分の applicationId を貼り付けてください。
+     本（ISBN）のみ使う場合は空のままでも動きます。 */
+  var RAKUTEN_APP_ID = "";
+  /* ================================================================ */
+
+  var BOOK_CAT="5", CDDVD_CAT="9879", GAME_CAT="1328";
+  var reader=null, controls=null, scanning=false;
+  var status="trading|sold_out", mediaCat=CDDVD_CAT, currentCategory=BOOK_CAT;
+  var currentKw="", currentKind="book", history=[];
+
   function $(id){return document.getElementById(id)}
   function setErr(m){$("err").textContent=m||""}
   function setSpin(m){$("spin").textContent=m||""}
+  function buzz(){ if(navigator.vibrate) navigator.vibrate(60); }
+  function flash(m){ setSpin(m); setTimeout(function(){ setSpin(""); },1500); }
 
   function mercariUrl(kw){
     var p=new URLSearchParams();
     p.set("keyword",kw); p.set("sort","created_time"); p.set("order","desc");
-    p.set("status",status); p.set("item_types","mercari"); p.set("category_id",BOOK_CATEGORY);
+    p.set("status",status); p.set("item_types","mercari"); p.set("category_id",currentCategory);
     return "https://jp.mercari.com/search?"+p.toString();
   }
 
+  /* ---------- 本：openBD → Googleブックス ---------- */
   function lookup(isbn){
     setErr(""); setSpin("書名を取得中…");
     fetch("https://api.openbd.jp/v1/get?isbn="+encodeURIComponent(isbn))
@@ -154,12 +175,11 @@
       .then(function(d){
         var rec=(d&&d[0])?d[0]:null, s=(rec&&rec.summary)?rec.summary:null;
         var title=s&&s.title?s.title:"";
-        if(title){ setSpin(""); showResult(isbn, title, s.author||"", s.cover||""); }
+        if(title){ setSpin(""); showResult(isbn, title, s.author||"", s.cover||"", "book"); }
         else { lookupGoogle(isbn); }
       })
       .catch(function(){ lookupGoogle(isbn); });
   }
-
   function lookupGoogle(isbn){
     setSpin("別のデータベースで検索中…");
     fetch("https://www.googleapis.com/books/v1/volumes?q=isbn:"+encodeURIComponent(isbn))
@@ -170,28 +190,68 @@
         if(title&&v.subtitle) title+=" "+v.subtitle;
         var author=v&&v.authors?v.authors.join(" "):"";
         var cover=(v&&v.imageLinks&&v.imageLinks.thumbnail)?v.imageLinks.thumbnail.replace(/^http:/,"https:"):"";
-        showResult(isbn, title, author, cover);
+        showResult(isbn, title, author, cover, "book");
       })
-      .catch(function(){ setSpin(""); showResult(isbn,"","",""); });
+      .catch(function(){ setSpin(""); showResult(isbn,"","","","book"); });
   }
 
-  function showResult(isbn,title,author,cover){
-    var found=!!title, kw=title||isbn, cv=$("cover");
-    $("ttl").textContent=title||"(書名の登録なし)";
-    $("aut").textContent=author||"";
-    $("isbnLbl").textContent="ISBN "+isbn;
+  /* ---------- CD/DVD/ゲーム：楽天ブックス総合検索（JSONP） ---------- */
+  function lookupRakuten(jan, cb){
+    var cbName="rk_"+Math.floor(Math.random()*1e9), done=false;
+    var s=document.createElement("script");
+    var to=setTimeout(function(){ finish(null); }, 8000);
+    function finish(item){ if(done)return; done=true; clearTimeout(to);
+      try{ delete window[cbName]; }catch(e){ window[cbName]=undefined; }
+      if(s.parentNode) s.parentNode.removeChild(s); cb(item); }
+    window[cbName]=function(data){
+      var item=(data&&data.Items&&data.Items[0]&&data.Items[0].Item)?data.Items[0].Item:null;
+      finish(item);
+    };
+    s.onerror=function(){ finish(null); };
+    s.src="https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404?format=json"
+      +"&applicationId="+encodeURIComponent(RAKUTEN_APP_ID)
+      +"&isbnjan="+encodeURIComponent(jan)+"&hits=1&callback="+cbName;
+    document.body.appendChild(s);
+  }
+  function lookupMedia(jan){
+    if(!RAKUTEN_APP_ID){
+      setSpin(""); setErr("楽天アプリIDが未設定です（CD/DVD/ゲームの商品名取得にはIDが必要です）。");
+      showResult(jan,"","","","media"); return;
+    }
+    setErr(""); setSpin("商品名を取得中…");
+    lookupRakuten(jan, function(item){
+      setSpin("");
+      if(item){
+        var title=item.title||"";
+        var sub=item.author||item.artistName||item.label||"";
+        var cover=(item.largeImageUrl||item.mediumImageUrl||"").replace(/^http:/,"https:");
+        showResult(jan, title, sub, cover, "media");
+      } else {
+        showResult(jan,"","","","media");
+      }
+    });
+  }
+
+  function showResult(code,title,sub,cover,kind){
+    currentKind=kind;
+    var found=!!title, kw=title||code, cv=$("cover");
+    $("ttl").textContent=title||"(商品名の登録なし)";
+    $("aut").textContent=sub||"";
+    $("isbnLbl").textContent=(kind==="book"?"ISBN ":"JAN ")+code;
     if(cover){ cv.classList.remove("ph"); cv.textContent=""; cv.style.backgroundImage="url('"+cover+"')"; }
-    else { cv.classList.add("ph"); cv.style.backgroundImage=""; cv.textContent="本"; }
+    else { cv.classList.add("ph"); cv.style.backgroundImage=""; cv.textContent=(kind==="book"?"本":"♪"); }
     $("result").classList.add("show");
     $("searchPanel").style.display="block";
-    $("manualTitleWrap").style.display = found ? "none" : "block";
-    if(!found){ $("manualTitle").value=""; }
-    currentKw=kw;
-    updateLink();
-    pushHistory(kw,isbn);
+
+    if(kind==="book"){ currentCategory=BOOK_CAT; $("mediaWrap").style.display="none"; }
+    else { currentCategory=mediaCat; $("mediaWrap").style.display="block"; }
+
+    $("manualTitle").value = found ? title : "";
+
+    currentKw=kw; updateLink(); pushHistory(kw,code);
   }
 
-  function pushHistory(t,isbn){ history.unshift({t:t,isbn:isbn}); if(history.length>20)history.pop(); renderHistory(); }
+  function pushHistory(t,code){ history.unshift({t:t,c:code}); if(history.length>20)history.pop(); renderHistory(); }
   function renderHistory(){
     var h=$("hist");
     if(!history.length){ h.innerHTML='<div class="empty">まだスキャンしていません。</div>'; return; }
@@ -199,21 +259,19 @@
     history.forEach(function(it){
       var row=document.createElement("div"); row.className="item";
       var t=document.createElement("div"); t.className="h-ttl"; t.textContent=it.t;
-      var b=document.createElement("button"); b.className="h-go"; b.textContent="開く";
-      b.onclick=function(){ window.open(mercariUrl(it.t),"_blank","noopener"); };
-      row.appendChild(t); row.appendChild(b); h.appendChild(row);
+      var a=document.createElement("a"); a.className="h-go"; a.textContent="開く";
+      a.href=mercariUrl(it.t); a.target="_blank"; a.rel="noopener";
+      row.appendChild(t); row.appendChild(a); h.appendChild(row);
     });
   }
 
   function handleCode(text){
     var d=(text||"").replace(/[^0-9]/g,"");
-    if(d.indexOf("978")===0||d.indexOf("979")===0){
-      if(d.length>=13) d=d.substring(0,13);
-      stopScan();
-      if(navigator.vibrate) navigator.vibrate(60);
-      lookup(d);
-    }
-    // 192…(価格コード)等は無視して読み取り継続
+    if(d.length<12) return;
+    if(d.indexOf("192")===0) return;            /* 書籍の価格コードは無視 */
+    if(d.length>13) d=d.substring(0,13);
+    if(d.indexOf("978")===0||d.indexOf("979")===0){ stopScan(); buzz(); lookup(d); }
+    else { stopScan(); buzz(); lookupMedia(d); }
   }
 
   function startScan(){
@@ -228,7 +286,7 @@
       function(result){ if(result) handleCode(result.getText()); }
     ).then(function(c){ controls=c; scanning=true;
         $("startBtn").textContent="カメラを停止";
-        $("scanHint").textContent="本の上側(978…)のバーコードを枠いっぱいに。10〜15cm離してピントを。";
+        $("scanHint").textContent="バーコードを枠いっぱいに。10〜15cm離してピントを。";
       })
       .catch(function(e){ video.style.display="none";
         setErr("カメラを起動できませんでした："+(e&&e.message?e.message:e));
@@ -242,19 +300,17 @@
   $("startBtn").onclick=function(){ scanning?stopScan():startScan(); };
   $("segSold").onclick=function(){ status="trading|sold_out"; this.classList.add("on"); $("segOnsale").classList.remove("on"); updateLink(); };
   $("segOnsale").onclick=function(){ status="on_sale"; this.classList.add("on"); $("segSold").classList.remove("on"); updateLink(); };
+  $("segCD").onclick=function(){ mediaCat=CDDVD_CAT; if(currentKind==="media")currentCategory=CDDVD_CAT; this.classList.add("on"); $("segGame").classList.remove("on"); updateLink(); };
+  $("segGame").onclick=function(){ mediaCat=GAME_CAT; if(currentKind==="media")currentCategory=GAME_CAT; this.classList.add("on"); $("segCD").classList.remove("on"); updateLink(); };
   $("goBtn").onclick=function(){
-    if(!currentKw){ setErr("先に本をスキャンしてください。"); return; }
+    if(!currentKw){ setErr("先にスキャンしてください。"); return; }
     window.open(mercariUrl(currentKw),"_blank","noopener");
   };
-  function flash(m){ setSpin(m); setTimeout(function(){ setSpin(""); },1500); }
-  function copyText(t){
-    try{ navigator.clipboard.writeText(t).then(function(){ flash("コピーしました"); },function(){ flash("コピーに失敗しました"); }); }
-    catch(e){ flash("コピーに失敗しました"); }
-  }
-  $("copyTitleBtn").onclick=function(){ if(!currentKw){ setErr("先に本をスキャンしてください。"); return; } copyText(currentKw); };
+  $("copyTitleBtn").onclick=function(){ if(!currentKw){ setErr("先にスキャンしてください。"); return; }
+    try{ navigator.clipboard.writeText(currentKw).then(function(){flash("コピーしました");},function(){flash("コピーに失敗しました");}); }catch(e){ flash("コピーに失敗しました"); } };
   $("manualTitleBtn").onclick=function(){
     var t=$("manualTitle").value.trim();
-    if(!t){ setErr("書名を入力してください。"); return; }
+    if(!t){ setErr("商品名を入力してください。"); return; }
     setErr(""); currentKw=t; $("ttl").textContent=t; updateLink(); flash("反映しました");
   };
   $("manualTitle").addEventListener("keydown",function(e){ if(e.key==="Enter") $("manualTitleBtn").click(); });
