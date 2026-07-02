@@ -222,7 +222,7 @@
   function mercariUrl(b){
     var kw=b.title+($("withAuthor").checked&&b.author?" "+b.author:"");
     return "https://jp.mercari.com/search?keyword="+encodeURIComponent(kw)
-      +"&status=sold_out%7Ctrading&item_types=mercari";
+      +"&status=sold_out%7Ctrading&item_types=mercari&sort=created_time&order=desc";
   }
   function amazonUrl(b){
     return "https://www.amazon.co.jp/s?k="+encodeURIComponent(b.title);
