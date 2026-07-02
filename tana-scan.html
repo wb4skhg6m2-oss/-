@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>棚スキャン | 本棚撮影リサーチツール</title>
+<style>
+  :root{
+    --bg:#EDF1F2;
+    --surface:#FFFFFF;
+    --ink:#1C2B33;
+    --ink-sub:#5B6B73;
+    --line:#D8E0E3;
+    --accent:#B34A2E;
+    --accent-ink:#FFFFFF;
+    --ok:#3E6B4A;
+    --spine1:#3E5C76;--spine2:#7A5C3E;--spine3:#5C7A4A;--spine4:#8A4A5C;--spine5:#54657E;--spine6:#6B5C7A;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);
+    padding:max(12px,env(safe-area-inset-top)) 14px calc(90px + env(safe-area-inset-bottom));
+    max-width:640px;margin:0 auto;line-height:1.55;
+  }
+  header{display:flex;align-items:baseline;gap:10px;margin:6px 2px 14px}
+  h1{font-size:22px;font-weight:800;letter-spacing:.04em}
+  h1 .mark{color:var(--accent)}
+  header small{color:var(--ink-sub);font-size:12px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+  .card h2{font-size:13px;font-weight:700;color:var(--ink-sub);letter-spacing:.08em;margin-bottom:10px}
+  label{font-size:12px;color:var(--ink-sub);display:block;margin-bottom:4px}
+  input[type=password],input[type=text],select{
+    width:100%;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#FBFCFC;color:var(--ink);
+  }
+  .row{display:flex;gap:8px;margin-top:10px}
+  .row>*{flex:1}
+  button{
+    font-size:15px;font-weight:700;padding:12px;border:none;border-radius:8px;cursor:pointer;
+    background:#E7ECEE;color:var(--ink);
+  }
+  button:active{opacity:.75}
+  button.primary{background:var(--accent);color:var(--accent-ink)}
+  button:disabled{opacity:.45}
+  .shoot{
+    position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 70%,transparent);max-width:640px;margin:0 auto;
+  }
+  .shoot button{width:100%;padding:16px;font-size:17px;border-radius:12px;box-shadow:0 3px 10px rgba(28,43,51,.18)}
+  #status{font-size:13px;color:var(--ink-sub);min-height:1.4em;margin:2px 2px 10px;white-space:pre-line}
+  #status.err{color:var(--accent)}
+  /* 検出結果：背表紙風リスト */
+  .book{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:10px 12px 10px 16px;margin-bottom:8px;position:relative;overflow:hidden;
+  }
+  .book::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--sp,var(--spine1))}
+  .book .t{font-weight:700;font-size:15px;line-height:1.4}
+  .book .a{font-size:12px;color:var(--ink-sub);margin-top:1px}
+  .book .links{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .book .links a{
+    font-size:13px;font-weight:700;text-decoration:none;padding:7px 12px;border-radius:999px;
+    border:1px solid var(--line);color:var(--ink);background:#F5F8F9;
+  }
+  .book .links a.merc{background:var(--accent);border-color:var(--accent);color:#fff}
+  .toolbar{display:flex;gap:8px;align-items:center;margin:14px 2px 8px}
+  .toolbar h2{font-size:14px;font-weight:800;flex:1}
+  .toolbar button{font-size:12px;padding:8px 12px}
+  .hint{font-size:11.5px;color:var(--ink-sub);margin:8px 2px 0}
+  details summary{font-size:13px;font-weight:700;color:var(--ink-sub);cursor:pointer;list-style:none}
+  details summary::before{content:"▸ "}
+  details[open] summary::before{content:"▾ "}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px}
+  .chk input{width:18px;height:18px}
+  #empty{color:var(--ink-sub);font-size:13px;text-align:center;padding:26px 0 10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>棚<span class="mark">スキャン</span></h1>
+  <small>棚を撮る → 書名を抽出 → 相場を確認</small>
+</header>
+
+<div class="card">
+  <details id="settings" open>
+    <summary>設定（Gemini APIキー）</summary>
+    <div style="margin-top:10px">
+      <label for="apikey">Gemini APIキー（この端末に保存されます）</label>
+      <input type="password" id="apikey" placeholder="AIza..." autocomplete="off">
+      <div class="row">
+        <div>
+          <label for="model">モデル</label>
+          <select id="model">
+            <option value="gemini-2.5-flash-lite" selected>2.5 Flash-Lite（低コスト）</option>
+            <option value="gemini-2.5-flash">2.5 Flash（高精度）</option>
+          </select>
+        </div>
+      </div>
+      <div class="chk">
+        <input type="checkbox" id="withAuthor">
+        <label for="withAuthor" style="margin:0">メルカリ検索に著者名も含める</label>
+      </div>
+      <div class="hint">キー取得は Google AI Studio（aistudio.google.com）→「Get API key」。無料枠で十分動きます。</div>
+    </div>
+  </details>
+</div>
+
+<p id="status"></p>
+
+<div class="toolbar">
+  <h2>検出結果 <span id="count"></span></h2>
+  <button id="copyBtn">一覧コピー</button>
+  <button id="clearBtn">クリア</button>
+</div>
+<div id="results"><div id="empty">まだ結果がありません。下のボタンから棚を撮影してください。<br>背表紙が画面いっぱいに写るように、1〜2段ずつ撮るのがコツです。</div></div>
+<p class="hint">※メルカリのリンクは<strong>長押し→「新規タブで開く」</strong>推奨。アプリで開くとSOLD絞り込みが無効になります。</p>
+
+<div class="shoot">
+  <button class="primary" id="shootBtn">📷 棚を撮影して解析</button>
+  <input type="file" id="file" accept="image/*" capture="environment" hidden>
+</div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var books=[]; // {title, author}
+  var memStore={};
+  function save(k,v){try{localStorage.setItem(k,v)}catch(e){memStore[k]=v}}
+  function load(k){try{return localStorage.getItem(k)||memStore[k]||""}catch(e){return memStore[k]||""}}
+
+  // 設定の復元
+  $("apikey").value=load("tana_key");
+  if(load("tana_model"))$("model").value=load("tana_model");
+  $("withAuthor").checked=load("tana_author")==="1";
+  if($("apikey").value)$("settings").open=false;
+  $("apikey").addEventListener("change",function(){save("tana_key",this.value.trim())});
+  $("model").addEventListener("change",function(){save("tana_model",this.value)});
+  $("withAuthor").addEventListener("change",function(){save("tana_author",this.checked?"1":"0");render()});
+
+  function setStatus(msg,err){var s=$("status");s.textContent=msg;s.className=err?"err":""}
+
+  $("shootBtn").addEventListener("click",function(){
+    if(!$("apikey").value.trim()){$("settings").open=true;setStatus("先にGemini APIキーを設定してください。",true);return}
+    $("file").value="";$("file").click();
+  });
+
+  $("file").addEventListener("change",function(){
+    if(this.files&&this.files[0])processImage(this.files[0]);
+  });
+
+  function processImage(file){
+    setStatus("画像を圧縮中…");
+    $("shootBtn").disabled=true;
+    var img=new Image();
+    var url=URL.createObjectURL(file);
+    img.onload=function(){
+      var MAX=1600;
+      var w=img.width,h=img.height;
+      var scale=Math.min(1,MAX/Math.max(w,h));
+      var c=document.createElement("canvas");
+      c.width=Math.round(w*scale);c.height=Math.round(h*scale);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      var b64=c.toDataURL("image/jpeg",0.82).split(",")[1];
+      callGemini(b64);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);setStatus("画像の読み込みに失敗しました。",true);$("shootBtn").disabled=false};
+    img.src=url;
+  }
+
+  function callGemini(b64){
+    setStatus("AIが背表紙を解析中…（数秒かかります）");
+    var key=$("apikey").value.trim();
+    var model=$("model").value;
+    var prompt="この本棚の写真から、判読できる書籍・CD・DVD・ゲームソフトの背表紙をすべて読み取ってください。"
+      +"JSON配列のみで出力してください。各要素は {\"title\":\"タイトル\",\"author\":\"著者名または出版社（不明ならnull）\"} 。"
+      +"判読が曖昧なものは含めないでください。前後の説明文やコードブロック記法は一切不要です。";
+    fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent?key="+encodeURIComponent(key),{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        contents:[{parts:[
+          {inline_data:{mime_type:"image/jpeg",data:b64}},
+          {text:prompt}
+        ]}],
+        generationConfig:{temperature:0.1,response_mime_type:"application/json"}
+      })
+    })
+    .then(function(r){
+      if(!r.ok)return r.json().then(function(j){throw new Error((j.error&&j.error.message)||("HTTP "+r.status))});
+      return r.json();
+    })
+    .then(function(data){
+      var text="";
+      try{
+        data.candidates[0].content.parts.forEach(function(p){if(p.text)text+=p.text});
+      }catch(e){throw new Error("応答の形式が想定外でした")}
+      text=text.replace(/```json|```/g,"").trim();
+      var arr=JSON.parse(text);
+      if(!Array.isArray(arr))throw new Error("JSON配列を取得できませんでした");
+      var added=0;
+      arr.forEach(function(b){
+        if(!b||!b.title)return;
+        var t=String(b.title).trim();
+        if(!t)return;
+        var dup=books.some(function(x){return x.title===t});
+        if(!dup){books.push({title:t,author:b.author?String(b.author).trim():""});added++}
+      });
+      render();
+      setStatus(added+"件を追加しました（重複除外後）。続けて次の棚も撮影できます。");
+    })
+    .catch(function(e){
+      var m=e.message||String(e);
+      if(/API key/i.test(m))m="APIキーが無効です。設定を確認してください。";
+      setStatus("エラー: "+m,true);
+    })
+    .then(function(){$("shootBtn").disabled=false});
+  }
+
+  function mercariUrl(b){
+    var kw=b.title+($("withAuthor").checked&&b.author?" "+b.author:"");
+    return "https://jp.mercari.com/search?keyword="+encodeURIComponent(kw)
+      +"&status=sold_out%7Ctrading&item_types=mercari";
+  }
+  function amazonUrl(b){
+    return "https://www.amazon.co.jp/s?k="+encodeURIComponent(b.title);
+  }
+
+  function render(){
+    var box=$("results");
+    box.innerHTML="";
+    $("count").textContent=books.length?("("+books.length+")"):"";
+    if(!books.length){
+      box.innerHTML='<div id="empty">まだ結果がありません。下のボタンから棚を撮影してください。<br>背表紙が画面いっぱいに写るように、1〜2段ずつ撮るのがコツです。</div>';
+      return;
+    }
+    books.forEach(function(b,i){
+      var div=document.createElement("div");
+      div.className="book";
+      div.style.setProperty("--sp","var(--spine"+((i%6)+1)+")");
+      var t=document.createElement("div");t.className="t";t.textContent=b.title;
+      var a=document.createElement("div");a.className="a";a.textContent=b.author||"";
+      var links=document.createElement("div");links.className="links";
+      var m=document.createElement("a");m.className="merc";m.textContent="メルカリ相場";m.href=mercariUrl(b);m.target="_blank";m.rel="noopener";
+      var z=document.createElement("a");z.textContent="Amazon";z.href=amazonUrl(b);z.target="_blank";z.rel="noopener";
+      links.appendChild(m);links.appendChild(z);
+      div.appendChild(t);if(b.author)div.appendChild(a);div.appendChild(links);
+      box.appendChild(div);
+    });
+  }
+
+  $("copyBtn").addEventListener("click",function(){
+    if(!books.length)return;
+    var text=books.map(function(b){return b.title+(b.author?"\t"+b.author:"")}).join("\n");
+    navigator.clipboard.writeText(text).then(function(){setStatus("一覧をコピーしました（タブ区切り）。")})
+      .catch(function(){setStatus("コピーに失敗しました。",true)});
+  });
+  $("clearBtn").addEventListener("click",function(){
+    if(!books.length)return;
+    if(confirm("検出結果をすべてクリアしますか？")){books=[];render();setStatus("")}
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
